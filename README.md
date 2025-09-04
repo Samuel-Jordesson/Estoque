@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏪 Sistema de Estoque
 
-## Getting Started
+Sistema completo de gerenciamento de estoque desenvolvido com Next.js, Prisma e SQLite.
 
-First, run the development server:
+## 🚀 Funcionalidades
+
+- **Dashboard** - Visão geral com métricas e gráficos
+- **Estoque** - Gerenciamento de produtos e movimentações
+- **Relatórios** - Análises e relatórios detalhados
+- **Usuários** - Gestão de usuários do sistema
+- **Configurações** - Dados da empresa e configurações
+
+## 🛠️ Tecnologias
+
+- **Frontend:** Next.js 15, React 19, TypeScript
+- **Styling:** Tailwind CSS, shadcn/ui
+- **Backend:** Next.js API Routes
+- **Database:** SQLite com Prisma ORM
+- **Deploy:** Docker, AWS EC2
+
+## 📦 Instalação
+
+### Pré-requisitos
+- Node.js 18+
+- npm ou yarn
+- Docker (para deploy)
+
+### Desenvolvimento Local
 
 ```bash
+# Clone o repositório
+git clone <seu-repositorio>
+cd sistema-estoque
+
+# Instale as dependências
+npm install
+
+# Configure o banco de dados
+npm run db:generate
+npm run db:push
+npm run db:seed
+
+# Execute o projeto
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Deploy com Docker
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Build e execute
+docker-compose up -d --build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Acesse em http://localhost:3000
+```
 
-## Learn More
+## 🗄️ Banco de Dados
 
-To learn more about Next.js, take a look at the following resources:
+O sistema usa SQLite com Prisma ORM. As tabelas incluem:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Empresa** - Dados da empresa
+- **Usuario** - Usuários do sistema
+- **Categoria** - Categorias de produtos
+- **Produto** - Produtos do estoque
+- **Movimentacao** - Histórico de movimentações
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🔧 Scripts Disponíveis
 
-## Deploy on Vercel
+```bash
+npm run dev          # Desenvolvimento
+npm run build        # Build para produção
+npm run start        # Iniciar em produção
+npm run db:generate  # Gerar cliente Prisma
+npm run db:push      # Sincronizar schema
+npm run db:seed      # Popular banco com dados iniciais
+npm run db:studio    # Interface visual do banco
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📱 Interface
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Design moderno e responsivo
+- Componentes reutilizáveis com shadcn/ui
+- Tema escuro/claro
+- Navegação intuitiva
+
+## 🚀 Deploy na AWS
+
+1. Crie uma instância EC2
+2. Clone o repositório na instância
+3. Execute o deploy com Docker
+
+```bash
+# Na instância EC2
+git clone <seu-repositorio>
+cd sistema-estoque
+docker-compose up -d --build
+```
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT.
+
+## 👨‍💻 Desenvolvido por
+
+Sistema de Estoque - Versão 1.0

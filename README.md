@@ -16,14 +16,13 @@ Sistema completo de gerenciamento de estoque desenvolvido com Next.js, Prisma e 
 - **Styling:** Tailwind CSS, shadcn/ui
 - **Backend:** Next.js API Routes
 - **Database:** SQLite com Prisma ORM
-- **Deploy:** Docker, AWS EC2
+- **Deploy:** PM2, AWS EC2
 
 ## 📦 Instalação
 
 ### Pré-requisitos
 - Node.js 18+
 - npm ou yarn
-- Docker (para deploy)
 
 ### Desenvolvimento Local
 
@@ -44,11 +43,17 @@ npm run db:seed
 npm run dev
 ```
 
-### Deploy com Docker
+### Deploy em Produção
 
 ```bash
-# Build e execute
-docker-compose up -d --build
+# Instalar PM2 globalmente
+npm install -g pm2
+
+# Build da aplicação
+npm run build
+
+# Iniciar com PM2
+pm2 start npm --name "sistema-estoque" -- start
 
 # Acesse em http://localhost:3000
 ```
@@ -85,14 +90,21 @@ npm run db:studio    # Interface visual do banco
 ## 🚀 Deploy na AWS
 
 1. Crie uma instância EC2
-2. Clone o repositório na instância
-3. Execute o deploy com Docker
+2. Execute o script de deploy automático
 
 ```bash
 # Na instância EC2
-git clone <seu-repositorio>
-cd sistema-estoque
-docker-compose up -d --build
+curl -fsSL https://raw.githubusercontent.com/Samuel-Jordesson/Estoque/master/deploy.sh | bash
+```
+
+Ou manualmente:
+
+```bash
+# Na instância EC2
+git clone https://github.com/Samuel-Jordesson/Estoque.git
+cd Estoque
+chmod +x deploy.sh
+./deploy.sh
 ```
 
 ## 📄 Licença

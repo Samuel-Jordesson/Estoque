@@ -98,8 +98,8 @@ Thumbs.db
 *.pem
 *.key
 
-# Docker
-.dockerignore
+# PM2
+.pm2/
 
 # Prisma
 prisma/migrations/

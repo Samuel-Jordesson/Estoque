@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo para dados da empresa
+model Empresa {
+  id          Int      @id @default(autoincrement())
+  nomeEmpresa String
+  cnpj        String   @unique
+  cpf         String?
+  email       String
+  telefone    String
+  endereco    String
+  bairro      String
+  cidade      String
+  estado      String
+  cep         String
+  responsavel String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("empresa")
+}
+
+// Modelo para usuários do sistema
+model Usuario {
+  id                Int      @id @default(autoincrement())
+  nome              String
+  email             String   @unique
+  telefone          String
+  cargo             String
+  senha             String
+  status            String   @default("ativo") // ativo, inativo
+  produtosRetirados Int      @default(0)
+  ultimaAtividade   DateTime @default(now())
+  dataCadastro      DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relacionamentos
+  movimentacoes Movimentacao[]
+
+  @@map("usuarios")
+}
+
+// Modelo para categorias de produtos
+model Categoria {
+  id          Int      @id @default(autoincrement())
+  nome        String   @unique
+  descricao   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  produtos Produto[]
+
+  @@map("categorias")
+}
+
+// Modelo para produtos
+model Produto {
+  id          Int      @id @default(autoincrement())
+  nome        String
+  descricao   String?
+  categoriaId Int
+  preco       Float
+  quantidade  Int      @default(0)
+  quantidadeMinima Int @default(0)
+  lastUpdated DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  categoria     Categoria      @relation(fields: [categoriaId], references: [id])
+  movimentacoes Movimentacao[]
+
+  @@map("produtos")
+}
+
+// Modelo para movimentações de estoque
+model Movimentacao {
+  id        Int      @id @default(autoincrement())
+  produtoId Int
+  usuarioId Int
+  tipo      String   // entrada, saida
+  quantidade Int
+  preco     Float
+  observacoes String?
+  data      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  produto Produto @relation(fields: [produtoId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@map("movimentacoes")
+}
+
+// Modelo para configurações do sistema
+model Configuracao {
+  id    Int    @id @default(autoincrement())
+  chave String @unique
+  valor String
+  descricao String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("configuracoes")
+}

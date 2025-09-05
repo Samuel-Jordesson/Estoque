@@ -3,10 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoginForm from './components/LoginForm';
+import RegisterModal from './components/RegisterModal';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginPage() {
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (email: string, password: string) => {
@@ -14,19 +18,27 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // Simular uma chamada de API
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Aqui você pode adicionar a lógica real de autenticação
-      if (email === 'demo@estoque.com' && password === 'demo123') {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, senha: password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
         // Login bem-sucedido
+        login(data.usuario, data.token);
         console.log('Login realizado com sucesso!');
         // Redirecionar para o dashboard
         router.push('/dashboard');
       } else {
-        setError('Email ou senha incorretos');
+        setError(data.error || 'Email ou senha incorretos');
       }
-    } catch {
+    } catch (error) {
+      console.error('Erro ao fazer login:', error);
       setError('Erro ao fazer login. Tente novamente.');
     } finally {
       setIsLoading(false);
@@ -48,6 +60,19 @@ export default function LoginPage() {
 
         {/* Formulário de login */}
         <LoginForm onLogin={handleLogin} isLoading={isLoading} />
+
+        {/* Botão para criar nova conta */}
+        <div className="mt-4 w-full">
+          <button
+            onClick={() => setShowRegisterModal(true)}
+            className="w-full py-2 px-4 text-sm text-purple-300 hover:text-white border border-purple-400/30 hover:border-purple-300 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            Criar Nova Conta
+          </button>
+        </div>
 
         {/* Mensagem de erro */}
         {error && (
@@ -73,6 +98,16 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* Modal de Registro */}
+      <RegisterModal
+        isOpen={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+        onSuccess={() => {
+          setShowRegisterModal(false);
+          setError('');
+        }}
+      />
     </div>
   );
 }

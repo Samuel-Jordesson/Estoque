@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -99,13 +99,34 @@ export default function UsuariosPage() {
   const [modalAberto, setModalAberto] = useState(false);
   const [modalEdicao, setModalEdicao] = useState(false);
   const [usuarioSelecionado, setUsuarioSelecionado] = useState<Usuario | null>(null);
-  const [usuarios, setUsuarios] = useState(mockUsuarios);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [loading, setLoading] = useState(true);
   const [novoUsuario, setNovoUsuario] = useState({
     nome: '',
     email: '',
     telefone: '',
-    cargo: ''
+    cargo: '',
+    senha: ''
   });
+
+  // Carregar usuários da API
+  useEffect(() => {
+    const carregarUsuarios = async () => {
+      try {
+        const response = await fetch('/api/usuarios');
+        if (response.ok) {
+          const data = await response.json();
+          setUsuarios(data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar usuários:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    carregarUsuarios();
+  }, []);
 
   // Filtrar usuários
   const usuariosFiltrados = usuarios.filter(usuario =>
@@ -115,19 +136,36 @@ export default function UsuariosPage() {
   );
 
   // Funções de manipulação
-  const handleAdicionarUsuario = () => {
-    if (novoUsuario.nome && novoUsuario.email && novoUsuario.telefone && novoUsuario.cargo) {
-      const usuario = {
-        id: usuarios.length + 1,
-        ...novoUsuario,
-        dataCadastro: new Date().toISOString().split('T')[0],
-        produtosRetirados: 0,
-        ultimaAtividade: new Date().toISOString().split('T')[0],
-        status: 'ativo'
-      };
-      setUsuarios([...usuarios, usuario]);
-      setNovoUsuario({ nome: '', email: '', telefone: '', cargo: '' });
-      setModalAberto(false);
+  const handleAdicionarUsuario = async () => {
+    if (novoUsuario.nome && novoUsuario.email && novoUsuario.telefone && novoUsuario.cargo && novoUsuario.senha) {
+      try {
+        const response = await fetch('/api/usuarios', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            nome: novoUsuario.nome,
+            email: novoUsuario.email,
+            telefone: novoUsuario.telefone,
+            cargo: novoUsuario.cargo,
+            senha: novoUsuario.senha
+          }),
+        });
+
+        if (response.ok) {
+          // Recarregar usuários
+          const usuariosResponse = await fetch('/api/usuarios');
+          if (usuariosResponse.ok) {
+            const data = await usuariosResponse.json();
+            setUsuarios(data);
+          }
+          setNovoUsuario({ nome: '', email: '', telefone: '', cargo: '', senha: '' });
+          setModalAberto(false);
+        }
+      } catch (error) {
+        console.error('Erro ao adicionar usuário:', error);
+      }
     }
   };
 
@@ -137,27 +175,63 @@ export default function UsuariosPage() {
       nome: usuario.nome,
       email: usuario.email,
       telefone: usuario.telefone,
-      cargo: usuario.cargo
+      cargo: usuario.cargo,
+      senha: ''
     });
     setModalEdicao(true);
   };
 
-  const handleSalvarEdicao = () => {
+  const handleSalvarEdicao = async () => {
     if (usuarioSelecionado && novoUsuario.nome && novoUsuario.email && novoUsuario.telefone && novoUsuario.cargo) {
-      setUsuarios(usuarios.map(u => 
-        u.id === usuarioSelecionado.id 
-          ? { ...u, ...novoUsuario }
-          : u
-      ));
-      setModalEdicao(false);
-      setUsuarioSelecionado(null);
-      setNovoUsuario({ nome: '', email: '', telefone: '', cargo: '' });
+      try {
+        const response = await fetch(`/api/usuarios/${usuarioSelecionado.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            nome: novoUsuario.nome,
+            email: novoUsuario.email,
+            telefone: novoUsuario.telefone,
+            cargo: novoUsuario.cargo
+          }),
+        });
+
+        if (response.ok) {
+          // Recarregar usuários
+          const usuariosResponse = await fetch('/api/usuarios');
+          if (usuariosResponse.ok) {
+            const data = await usuariosResponse.json();
+            setUsuarios(data);
+          }
+          setModalEdicao(false);
+          setUsuarioSelecionado(null);
+          setNovoUsuario({ nome: '', email: '', telefone: '', cargo: '', senha: '' });
+        }
+      } catch (error) {
+        console.error('Erro ao editar usuário:', error);
+      }
     }
   };
 
-  const handleExcluirUsuario = (id: number) => {
+  const handleExcluirUsuario = async (id: number) => {
     if (confirm('Tem certeza que deseja excluir este usuário?')) {
-      setUsuarios(usuarios.filter(u => u.id !== id));
+      try {
+        const response = await fetch(`/api/usuarios/${id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          // Recarregar usuários
+          const usuariosResponse = await fetch('/api/usuarios');
+          if (usuariosResponse.ok) {
+            const data = await usuariosResponse.json();
+            setUsuarios(data);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao excluir usuário:', error);
+      }
     }
   };
 
@@ -471,6 +545,16 @@ export default function UsuariosPage() {
                 placeholder="Ex: Gerente de Estoque"
                 value={novoUsuario.cargo}
                 onChange={(e) => setNovoUsuario({...novoUsuario, cargo: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="senha">Senha</Label>
+              <Input
+                id="senha"
+                type="password"
+                placeholder="Digite uma senha"
+                value={novoUsuario.senha}
+                onChange={(e) => setNovoUsuario({...novoUsuario, senha: e.target.value})}
               />
             </div>
           </div>

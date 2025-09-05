@@ -23,7 +23,7 @@ export default function LoginForm({ onLogin, isLoading = false }: LoginFormProps
   };
 
   const handleDemoLogin = () => {
-    onLogin('demo@estoque.com', 'demo123');
+    onLogin('joao.barbosa@empresa.com', '123456');
   };
 
   return (

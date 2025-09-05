@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
@@ -14,25 +14,55 @@ import {
 import Sidebar from '../components/Sidebar';
 import AddProductModal from '../components/AddProductModal';
 import QuantityModal from '../components/QuantityModal';
+import ProductActionsMenu from '../components/ProductActionsMenu';
+import EditProductModal from '../components/EditProductModal';
+import ViewProductModal from '../components/ViewProductModal';
+import ConfirmModal from '../components/ConfirmModal';
+import ProductPdfGenerator from '../components/ProductPdfGenerator';
+import ExportProductsPdf from '../components/ExportProductsPdf';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/hooks/useAuth';
 
-// Dados mockados dos produtos
-const mockProducts = [
-  { id: 1, name: 'Notebook Dell Inspiron', quantity: 15, addedBy: 'João Barbosa', category: 'Eletrônicos', price: 2500.00, lastUpdated: '2024-01-15' },
-  { id: 2, name: 'Mouse Logitech MX3', quantity: 8, addedBy: 'Maria Silva', category: 'Periféricos', price: 299.90, lastUpdated: '2024-01-14' },
-  { id: 3, name: 'Teclado Mecânico RGB', quantity: 12, addedBy: 'Pedro Santos', category: 'Periféricos', price: 450.00, lastUpdated: '2024-01-13' },
-  { id: 4, name: 'Monitor 24" Samsung', quantity: 5, addedBy: 'Ana Costa', category: 'Monitores', price: 899.99, lastUpdated: '2024-01-12' },
-  { id: 5, name: 'Webcam HD 1080p', quantity: 20, addedBy: 'Carlos Lima', category: 'Acessórios', price: 199.90, lastUpdated: '2024-01-11' },
-  { id: 6, name: 'Headset Gamer', quantity: 3, addedBy: 'João Barbosa', category: 'Acessórios', price: 599.90, lastUpdated: '2024-01-10' },
-];
+// Tipo para produto
+type Produto = {
+  id: number;
+  nome: string;
+  descricao?: string;
+  categoria: {
+    id: number;
+    nome: string;
+  };
+  preco: number;
+  quantidade: number;
+  quantidadeMinima: number;
+  lastUpdated: string;
+  createdAt: string;
+};
+
+// Tipo para categoria
+type Categoria = {
+  id: number;
+  nome: string;
+  descricao?: string;
+};
 
 export default function EstoquePage() {
+  const { usuario, token } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [products, setProducts] = useState(mockProducts);
+  const [products, setProducts] = useState<Produto[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Produto | null>(null);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
   const [modalState, setModalState] = useState({
     isOpen: false,
     type: 'add' as 'add' | 'remove',
@@ -40,6 +70,33 @@ export default function EstoquePage() {
     productName: '',
     currentQuantity: 0,
   });
+
+  // Carregar produtos e categorias da API
+  useEffect(() => {
+    const carregarDados = async () => {
+      try {
+        // Carregar produtos
+        const produtosResponse = await fetch('/api/produtos');
+        if (produtosResponse.ok) {
+          const produtosData = await produtosResponse.json();
+          setProducts(produtosData);
+        }
+
+        // Carregar categorias
+        const categoriasResponse = await fetch('/api/categorias');
+        if (categoriasResponse.ok) {
+          const categoriasData = await categoriasResponse.json();
+          setCategorias(categoriasData);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    carregarDados();
+  }, []);
 
   const handleAddQuantity = (id: number, productName: string, currentQuantity: number) => {
     setModalState({
@@ -61,18 +118,36 @@ export default function EstoquePage() {
     });
   };
 
-  const handleModalConfirm = (quantity: number) => {
-    if (modalState.productId) {
-      setProducts(products.map(product => {
-        if (product.id === modalState.productId) {
-          const newQuantity = modalState.type === 'add' 
-            ? product.quantity + quantity
-            : Math.max(0, product.quantity - quantity);
-          
-          return { ...product, quantity: newQuantity };
+  const handleModalConfirm = async (quantity: number) => {
+    if (modalState.productId && usuario && token) {
+      try {
+        const response = await fetch('/api/movimentacoes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            produtoId: modalState.productId,
+            usuarioId: usuario.id,
+            tipo: modalState.type === 'add' ? 'entrada' : 'saida',
+            quantidade: quantity,
+            preco: products.find(p => p.id === modalState.productId)?.preco || 0,
+            observacoes: `${modalState.type === 'add' ? 'Entrada' : 'Saída'} de ${quantity} unidades`
+          }),
+        });
+
+        if (response.ok) {
+          // Recarregar produtos
+          const produtosResponse = await fetch('/api/produtos');
+          if (produtosResponse.ok) {
+            const data = await produtosResponse.json();
+            setProducts(data);
+          }
         }
-        return product;
-      }));
+      } catch (error) {
+        console.error('Erro ao atualizar estoque:', error);
+      }
     }
   };
 
@@ -86,20 +161,169 @@ export default function EstoquePage() {
     });
   };
 
-  const handleAddProduct = (newProduct: { name: string; quantity: number; addedBy: string }) => {
-    const newId = Math.max(...products.map(p => p.id)) + 1;
-    setProducts([...products, { 
-      ...newProduct, 
-      id: newId,
-      category: 'Novo',
-      price: 0.00,
-      lastUpdated: new Date().toISOString().split('T')[0]
-    }]);
+  const handleAddProduct = async (newProduct: { name: string; quantity: number; price: number; categoriaId: number }) => {
+    if (!usuario || !token) return;
+    
+    try {
+      const response = await fetch('/api/produtos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          nome: newProduct.name,
+          descricao: `Produto adicionado por ${usuario.nome}`,
+          categoriaId: newProduct.categoriaId,
+          preco: newProduct.price,
+          quantidade: newProduct.quantity,
+          quantidadeMinima: 1
+        }),
+      });
+
+      if (response.ok) {
+        // Recarregar produtos
+        const produtosResponse = await fetch('/api/produtos');
+        if (produtosResponse.ok) {
+          const data = await produtosResponse.json();
+          setProducts(data);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar produto:', error);
+    }
+  };
+
+  const handleAddCategory = async (newCategory: { name: string; description: string }) => {
+    try {
+      const response = await fetch('/api/categorias', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nome: newCategory.name,
+          descricao: newCategory.description
+        }),
+      });
+
+      if (response.ok) {
+        // Recarregar categorias
+        const categoriasResponse = await fetch('/api/categorias');
+        if (categoriasResponse.ok) {
+          const data = await categoriasResponse.json();
+          setCategorias(data);
+          // Selecionar a nova categoria
+          if (data.length > 0) {
+            const novaCategoria = data[data.length - 1];
+            // Aqui você pode atualizar o estado do modal se necessário
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar categoria:', error);
+    }
+  };
+
+  // Funções para ações do produto
+  const handleViewProduct = (product: Produto) => {
+    setSelectedProduct(product);
+    setViewModalOpen(true);
+  };
+
+  const handleGeneratePdf = (product: Produto) => {
+    setSelectedProduct(product);
+    setPdfModalOpen(true);
+  };
+
+  const handleExportProducts = () => {
+    setExportModalOpen(true);
+  };
+
+  const handleEditProduct = (product: Produto) => {
+    setSelectedProduct(product);
+    setEditModalOpen(true);
+  };
+
+  const handleDeleteProduct = (product: Produto) => {
+    setSelectedProduct(product);
+    setConfirmAction(() => async () => {
+      try {
+        const response = await fetch(`/api/produtos/${product.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          // Recarregar produtos
+          const produtosResponse = await fetch('/api/produtos');
+          if (produtosResponse.ok) {
+            const data = await produtosResponse.json();
+            setProducts(data);
+          }
+        } else {
+          const errorData = await response.json();
+          alert(`Erro ao excluir produto: ${errorData.error}`);
+        }
+      } catch (error) {
+        console.error('Erro ao excluir produto:', error);
+        alert('Erro ao excluir produto. Tente novamente.');
+      }
+    });
+    setConfirmModalOpen(true);
+  };
+
+  const handleUpdateProduct = async (updatedProduct: { 
+    id: number;
+    name: string; 
+    categoriaId: number; 
+    price: number; 
+    quantidadeMinima: number;
+  }) => {
+    try {
+      const response = await fetch(`/api/produtos/${updatedProduct.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          nome: updatedProduct.name,
+          categoriaId: updatedProduct.categoriaId,
+          preco: updatedProduct.price,
+          quantidadeMinima: updatedProduct.quantidadeMinima
+        }),
+      });
+
+      if (response.ok) {
+        // Recarregar produtos
+        const produtosResponse = await fetch('/api/produtos');
+        if (produtosResponse.ok) {
+          const data = await produtosResponse.json();
+          setProducts(data);
+        }
+        setEditModalOpen(false);
+        setSelectedProduct(null);
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar produto:', error);
+    }
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmAction) {
+      confirmAction();
+    }
+    setConfirmAction(null);
+    setSelectedProduct(null);
   };
 
   const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.addedBy.toLowerCase().includes(searchTerm.toLowerCase())
+    product.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.categoria.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -132,10 +356,10 @@ export default function EstoquePage() {
             
             <div className="flex items-center space-x-3">
               <Button variant="outline" size="sm">
-                <Filter className="w-4 h-4 mr-2" />
-                Filtros
+                <Eye className="w-4 h-4 mr-2" />
+                Visualizar
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExportProducts}>
                 <Package className="w-4 h-4 mr-2" />
                 Exportar
               </Button>
@@ -145,23 +369,6 @@ export default function EstoquePage() {
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-6">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
-                  Gerenciamento de Estoque
-                </h1>
-                <p className="text-slate-600">Controle total dos seus produtos e inventário</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Relatórios
-                </Button>
-              </div>
-            </div>
-          </div>
 
           {/* Action Bar */}
           <Card className="mb-6 border-0 shadow-lg">
@@ -207,12 +414,6 @@ export default function EstoquePage() {
                   <CardTitle>Produtos em Estoque</CardTitle>
                   <CardDescription>{filteredProducts.length} produtos encontrados</CardDescription>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Eye className="w-4 h-4 mr-2" />
-                    Visualizar
-                  </Button>
-                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -241,7 +442,17 @@ export default function EstoquePage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-slate-100">
-                    {filteredProducts.map((product) => (
+                    {loading ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center">
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                            <span className="ml-2 text-slate-600">Carregando produtos...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredProducts.map((product) => (
                       <tr key={product.id} className="hover:bg-slate-50/50 transition-colors duration-200">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -249,38 +460,40 @@ export default function EstoquePage() {
                               <Package className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-slate-900">{product.name}</div>
+                              <div className="text-sm font-medium text-slate-900">{product.nome}</div>
                               <div className="text-xs text-slate-500">ID: {product.id}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                            {product.category}
+                            {product.categoria.nome}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              product.quantity > 10 
+                              product.quantidade > 10 
                                 ? 'bg-green-100 text-green-700' 
-                                : product.quantity > 5 
+                                : product.quantidade > 5 
                                 ? 'bg-yellow-100 text-yellow-700' 
                                 : 'bg-red-100 text-red-700'
                             }`}>
-                              {product.quantity}
+                              {product.quantidade}
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 font-medium">
-                          R$ {product.price.toFixed(2)}
+                          R$ {product.preco.toFixed(2)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center mr-2">
                               <Users className="w-3 h-3 text-slate-600" />
                             </div>
-                            <span className="text-sm text-slate-600">{product.addedBy}</span>
+                            <span className="text-sm text-slate-600">
+                              {usuario?.nome || 'Sistema'}
+                            </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -289,7 +502,7 @@ export default function EstoquePage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleAddQuantity(product.id, product.name, product.quantity)}
+                              onClick={() => handleAddQuantity(product.id, product.nome, product.quantidade)}
                               className="text-green-600 border-green-200 hover:bg-green-50"
                             >
                               <Plus className="w-4 h-4" />
@@ -299,23 +512,27 @@ export default function EstoquePage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleRemoveQuantity(product.id, product.name, product.quantity)}
+                              onClick={() => handleRemoveQuantity(product.id, product.nome, product.quantidade)}
                               className="text-red-600 border-red-200 hover:bg-red-50"
-                              disabled={product.quantity === 0}
+                              disabled={product.quantidade === 0}
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                               </svg>
                             </Button>
 
-                            {/* More Actions */}
-                            <Button size="sm" variant="ghost">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
+                            {/* Product Actions Menu */}
+                            <ProductActionsMenu
+                              onView={() => handleViewProduct(product)}
+                              onPdf={() => handleGeneratePdf(product)}
+                              onEdit={() => handleEditProduct(product)}
+                              onDelete={() => handleDeleteProduct(product)}
+                            />
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -369,7 +586,7 @@ export default function EstoquePage() {
                   <div>
                     <p className="text-sm font-medium text-slate-600 mb-1">Total em Estoque</p>
                     <p className="text-2xl font-bold text-slate-800">
-                      {products.reduce((sum, product) => sum + product.quantity, 0)}
+                      {products.reduce((sum, product) => sum + product.quantidade, 0)}
                     </p>
                     <p className="text-xs text-slate-500 mt-1">Unidades disponíveis</p>
                   </div>
@@ -386,7 +603,7 @@ export default function EstoquePage() {
                   <div>
                     <p className="text-sm font-medium text-slate-600 mb-1">Valor Total</p>
                     <p className="text-2xl font-bold text-slate-800">
-                      R$ {products.reduce((sum, product) => sum + (product.price * product.quantity), 0).toFixed(2)}
+                      R$ {products.reduce((sum, product) => sum + (product.preco * product.quantidade), 0).toFixed(2)}
                     </p>
                     <p className="text-xs text-slate-500 mt-1">Valor do inventário</p>
                   </div>
@@ -407,6 +624,8 @@ export default function EstoquePage() {
         isOpen={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         onConfirm={handleAddProduct}
+        categorias={categorias}
+        onAddCategory={handleAddCategory}
       />
 
       {/* Quantity Modal */}
@@ -417,6 +636,63 @@ export default function EstoquePage() {
         type={modalState.type}
         currentQuantity={modalState.currentQuantity}
         productName={modalState.productName}
+      />
+
+      {/* Edit Product Modal */}
+      <EditProductModal
+        isOpen={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedProduct(null);
+        }}
+        onConfirm={handleUpdateProduct}
+        product={selectedProduct}
+        categorias={categorias}
+      />
+
+      {/* View Product Modal */}
+      <ViewProductModal
+        isOpen={viewModalOpen}
+        onClose={() => {
+          setViewModalOpen(false);
+          setSelectedProduct(null);
+        }}
+        product={selectedProduct}
+      />
+
+      {/* PDF Generator Modal */}
+      {pdfModalOpen && (
+        <ProductPdfGenerator
+          product={selectedProduct}
+          onClose={() => {
+            setPdfModalOpen(false);
+            setSelectedProduct(null);
+          }}
+        />
+      )}
+
+      {/* Export Products PDF Modal */}
+      {exportModalOpen && (
+        <ExportProductsPdf
+          products={products}
+          onClose={() => setExportModalOpen(false)}
+        />
+      )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        onClose={() => {
+          setConfirmModalOpen(false);
+          setConfirmAction(null);
+          setSelectedProduct(null);
+        }}
+        onConfirm={handleConfirmAction}
+        title="Excluir Produto"
+        description={`Tem certeza que deseja excluir o produto "${selectedProduct?.nome}"?`}
+        type="delete"
+        confirmText="Excluir"
+        cancelText="Cancelar"
       />
     </div>
   );

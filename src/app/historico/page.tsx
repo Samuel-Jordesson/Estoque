@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
@@ -35,8 +35,32 @@ const categorias = ['Todas', 'Eletrônicos', 'Periféricos', 'Monitores', 'Acess
 const usuarios = ['Todos', 'João Barbosa', 'Maria Silva', 'Pedro Santos', 'Ana Costa', 'Carlos Lima'];
 const tipos = ['Todos', 'Entrada', 'Saída'];
 
+// Tipo para movimentação
+type Movimentacao = {
+  id: number;
+  produto: {
+    id: number;
+    nome: string;
+    categoria: {
+      id: number;
+      nome: string;
+    };
+  };
+  usuario: {
+    id: number;
+    nome: string;
+  };
+  tipo: string;
+  quantidade: number;
+  preco: number;
+  observacoes?: string;
+  data: string;
+};
+
 export default function HistoricoPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filtros, setFiltros] = useState({
     busca: '',
     categoria: 'Todas',
@@ -46,12 +70,31 @@ export default function HistoricoPage() {
     dataFim: ''
   });
 
+  // Carregar movimentações da API
+  useEffect(() => {
+    const carregarMovimentacoes = async () => {
+      try {
+        const response = await fetch('/api/movimentacoes');
+        if (response.ok) {
+          const data = await response.json();
+          setMovimentacoes(data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar movimentações:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    carregarMovimentacoes();
+  }, []);
+
   // Filtrar movimentações
-  const movimentacoesFiltradas = mockMovimentacoes.filter(mov => {
-    const matchBusca = mov.produto.toLowerCase().includes(filtros.busca.toLowerCase()) ||
-                      mov.usuario.toLowerCase().includes(filtros.busca.toLowerCase());
-    const matchCategoria = filtros.categoria === 'Todas' || mov.categoria === filtros.categoria;
-    const matchUsuario = filtros.usuario === 'Todos' || mov.usuario === filtros.usuario;
+  const movimentacoesFiltradas = movimentacoes.filter(mov => {
+    const matchBusca = mov.produto.nome.toLowerCase().includes(filtros.busca.toLowerCase()) ||
+                      mov.usuario.nome.toLowerCase().includes(filtros.busca.toLowerCase());
+    const matchCategoria = filtros.categoria === 'Todas' || mov.produto.categoria.nome === filtros.categoria;
+    const matchUsuario = filtros.usuario === 'Todos' || mov.usuario.nome === filtros.usuario;
     const matchTipo = filtros.tipo === 'Todos' || 
                      (filtros.tipo === 'Entrada' && mov.tipo === 'entrada') ||
                      (filtros.tipo === 'Saída' && mov.tipo === 'saida');
@@ -319,14 +362,14 @@ export default function HistoricoPage() {
                               <Package className="w-4 h-4 text-white" />
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-slate-900">{mov.produto}</div>
+                              <div className="text-sm font-medium text-slate-900">{mov.produto.nome}</div>
                               <div className="text-xs text-slate-500">ID: {mov.id}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                            {mov.categoria}
+                            {mov.produto.categoria.nome}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -352,7 +395,7 @@ export default function HistoricoPage() {
                             <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center mr-2">
                               <User className="w-3 h-3 text-slate-600" />
                             </div>
-                            <span className="text-sm text-slate-600">{mov.usuario}</span>
+                            <span className="text-sm text-slate-600">{mov.usuario.nome}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">

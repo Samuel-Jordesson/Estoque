@@ -27,6 +27,12 @@ model Empresa {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Relacionamentos
+  usuarios      Usuario[]
+  categorias    Categoria[]
+  produtos      Produto[]
+  movimentacoes Movimentacao[]
+
   @@map("empresa")
 }
 
@@ -42,10 +48,12 @@ model Usuario {
   produtosRetirados Int      @default(0)
   ultimaAtividade   DateTime @default(now())
   dataCadastro      DateTime @default(now())
+  empresaId         Int
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   // Relacionamentos
+  empresa       Empresa        @relation(fields: [empresaId], references: [id])
   movimentacoes Movimentacao[]
 
   @@map("usuarios")
@@ -54,14 +62,17 @@ model Usuario {
 // Modelo para categorias de produtos
 model Categoria {
   id          Int      @id @default(autoincrement())
-  nome        String   @unique
+  nome        String
   descricao   String?
+  empresaId   Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relacionamentos
+  empresa  Empresa  @relation(fields: [empresaId], references: [id])
   produtos Produto[]
 
+  @@unique([nome, empresaId])
   @@map("categorias")
 }
 
@@ -71,6 +82,7 @@ model Produto {
   nome        String
   descricao   String?
   categoriaId Int
+  empresaId   Int
   preco       Float
   quantidade  Int      @default(0)
   quantidadeMinima Int @default(0)
@@ -79,6 +91,7 @@ model Produto {
   updatedAt   DateTime @updatedAt
 
   // Relacionamentos
+  empresa       Empresa        @relation(fields: [empresaId], references: [id])
   categoria     Categoria      @relation(fields: [categoriaId], references: [id])
   movimentacoes Movimentacao[]
 
@@ -90,6 +103,7 @@ model Movimentacao {
   id        Int      @id @default(autoincrement())
   produtoId Int
   usuarioId Int
+  empresaId Int
   tipo      String   // entrada, saida
   quantidade Int
   preco     Float
@@ -98,8 +112,9 @@ model Movimentacao {
   createdAt DateTime @default(now())
 
   // Relacionamentos
-  produto Produto @relation(fields: [produtoId], references: [id])
-  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  empresa  Empresa  @relation(fields: [empresaId], references: [id])
+  produto  Produto  @relation(fields: [produtoId], references: [id])
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id])
 
   @@map("movimentacoes")
 }

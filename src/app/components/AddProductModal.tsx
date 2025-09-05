@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Package, User, Hash } from 'lucide-react';
+import { Plus, Package, User, Hash, Tag } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -13,25 +13,36 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import AddCategoryModal from './AddCategoryModal';
+
+interface Categoria {
+  id: number;
+  nome: string;
+}
 
 interface AddProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (product: { name: string; quantity: number; addedBy: string }) => void;
+  onConfirm: (product: { name: string; quantity: number; price: number; categoriaId: number }) => void;
+  categorias?: Categoria[];
+  onAddCategory?: (category: { name: string; description: string }) => void;
 }
 
-export default function AddProductModal({ isOpen, onClose, onConfirm }: AddProductModalProps) {
+export default function AddProductModal({ isOpen, onClose, onConfirm, categorias = [], onAddCategory }: AddProductModalProps) {
   const [productName, setProductName] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [addedBy, setAddedBy] = useState('');
+  const [price, setPrice] = useState(0);
+  const [categoriaId, setCategoriaId] = useState(1);
+  const [showAddCategory, setShowAddCategory] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (productName.trim() && addedBy.trim() && quantity > 0) {
+    if (productName.trim() && quantity > 0 && price >= 0 && categoriaId) {
       onConfirm({
         name: productName.trim(),
         quantity,
-        addedBy: addedBy.trim(),
+        price,
+        categoriaId,
       });
       handleClose();
     }
@@ -40,8 +51,17 @@ export default function AddProductModal({ isOpen, onClose, onConfirm }: AddProdu
   const handleClose = () => {
     setProductName('');
     setQuantity(1);
-    setAddedBy('');
+    setPrice(0);
+    setCategoriaId(1);
+    setShowAddCategory(false);
     onClose();
+  };
+
+  const handleAddCategory = (category: { name: string; description: string }) => {
+    if (onAddCategory) {
+      onAddCategory(category);
+    }
+    setShowAddCategory(false);
   };
 
   return (
@@ -79,6 +99,39 @@ export default function AddProductModal({ isOpen, onClose, onConfirm }: AddProdu
               />
             </div>
           </div>
+
+          {/* Categoria */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="categoria" className="text-sm font-medium">
+                Categoria *
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddCategory(true)}
+                className="text-xs h-7 px-2"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Nova
+              </Button>
+            </div>
+            <select
+              id="categoria"
+              value={categoriaId}
+              onChange={(e) => setCategoriaId(parseInt(e.target.value))}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              required
+            >
+              {categorias.map((categoria) => (
+                <option key={categoria.id} value={categoria.id}>
+                  {categoria.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+
 
           {/* Quantidade */}
           <div className="space-y-2">
@@ -123,19 +176,22 @@ export default function AddProductModal({ isOpen, onClose, onConfirm }: AddProdu
             </div>
           </div>
 
-          {/* Quem Adicionou */}
+          {/* Valor */}
           <div className="space-y-2">
-            <Label htmlFor="addedBy" className="text-sm font-medium">
-              Responsável *
+            <Label htmlFor="price" className="text-sm font-medium">
+              Valor Unitário (R$) *
             </Label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">R$</span>
               <Input
-                id="addedBy"
-                value={addedBy}
-                onChange={(e) => setAddedBy(e.target.value)}
+                type="number"
+                id="price"
+                value={price}
+                onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
                 className="pl-10"
-                placeholder="Digite seu nome"
+                placeholder="0,00"
+                min="0"
+                step="0.01"
                 required
               />
             </div>
@@ -155,6 +211,13 @@ export default function AddProductModal({ isOpen, onClose, onConfirm }: AddProdu
           </DialogFooter>
         </form>
       </DialogContent>
+      
+      {/* Modal para adicionar categoria */}
+      <AddCategoryModal
+        isOpen={showAddCategory}
+        onClose={() => setShowAddCategory(false)}
+        onConfirm={handleAddCategory}
+      />
     </Dialog>
   );
 }
